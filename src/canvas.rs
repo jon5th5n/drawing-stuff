@@ -10,7 +10,7 @@ use crate::color::{RGB, RGBA};
 ///
 /// pub struct Circle {
 ///     pub center: (isize, isize),
-///     pub radius: usize,
+///     pub radius: u32,
 ///     pub solid: bool,
 ///
 ///     pub color: RGBA,
@@ -433,7 +433,7 @@ impl Canvas {
     /// let color = RGBA { r: 255, g: 255, b: 255, a: 255 };
     /// canvas.draw_circle(200, 100, 15, color);
     /// ```
-    pub fn draw_circle(&mut self, x: isize, y: isize, r: usize, color: RGBA) {
+    pub fn draw_circle(&mut self, x: isize, y: isize, r: u32, color: RGBA) {
         if r == 0 {
             return;
         }
@@ -478,7 +478,7 @@ impl Canvas {
     /// let color = RGBA { r: 255, g: 255, b: 255, a: 255 };
     /// canvas.draw_circle_solid(200, 100, 15, color);
     /// ```
-    pub fn draw_circle_solid(&mut self, x: isize, y: isize, r: usize, color: RGBA) {
+    pub fn draw_circle_solid(&mut self, x: isize, y: isize, r: u32, color: RGBA) {
         if r == 0 {
             return;
         }
@@ -489,8 +489,8 @@ impl Canvas {
 
         let dy = 2 * r;
 
-        let mut left_buff = vec![0isize; dy + 1];
-        let mut right_buff = vec![0isize; dy + 1];
+        let mut left_buff = vec![0isize; dy as usize + 1];
+        let mut right_buff = vec![0isize; dy as usize + 1];
 
         while y_offset <= x_offset {
             right_buff[(y + y_offset - (y - r as isize)) as usize] = x + x_offset;
@@ -513,8 +513,8 @@ impl Canvas {
 
         for i in 0..dy {
             let y = i as isize + (y - r as isize);
-            let x1 = left_buff[i];
-            let x2 = right_buff[i];
+            let x1 = left_buff[i as usize];
+            let x2 = right_buff[i as usize];
 
             for x in x1..x2 {
                 self.draw_pixel(x, y, color);
