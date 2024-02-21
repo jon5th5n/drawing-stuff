@@ -348,6 +348,7 @@ impl Canvas {
             for i in 0..(end_y - start_y) {
                 self.draw_pixel(x1, start_y + i, color);
             }
+            return;
         }
 
         let dx = (x2 - x1).abs();
@@ -415,6 +416,101 @@ impl Canvas {
                 }
             }
         }
+    }
+
+    /// Draws a line with specified width onto the canvas.
+    /// Drawing the line as a filled polygon.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use drawing_stuff::canvas::Canvas;
+    /// use drawing_stuff::color::RGBA;
+    ///
+    /// const WIDTH: usize = 1080;
+    /// const HEIGHT: usize = 720;
+    ///
+    /// let mut canvas = Canvas::new(WIDTH, HEIGHT);
+    ///
+    /// let color = RGBA { r: 255, g: 255, b: 255, a: 255 };
+    /// canvas.draw_polyline(200, 100, 500, 700, 5, color);
+    /// ```
+    pub fn draw_polyline(
+        &mut self,
+        x1: isize,
+        y1: isize,
+        x2: isize,
+        y2: isize,
+        width: u32,
+        color: RGBA,
+    ) {
+        if width == 0 {
+            return;
+        }
+
+        if width == 1 {
+            self.draw_line(x1, y1, x2, y2, color);
+            return;
+        }
+
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+
+        let d_len = ((dx * dx + dy * dy) as f32).sqrt();
+        let dx_n = dx as f32 / d_len;
+        let dy_n = dy as f32 / d_len;
+
+        let v1 = (
+            x1 - (dy_n * width as f32 / 2.0).round() as isize,
+            y1 + (dx_n * width as f32 / 2.0).round() as isize,
+        );
+        let v2 = (
+            x1 + (dy_n * width as f32 / 2.0).round() as isize,
+            y1 - (dx_n * width as f32 / 2.0).round() as isize,
+        );
+        let v3 = (
+            x2 + (dy_n * width as f32 / 2.0).round() as isize,
+            y2 - (dx_n * width as f32 / 2.0).round() as isize,
+        );
+        let v4 = (
+            x2 - (dy_n * width as f32 / 2.0).round() as isize,
+            y2 + (dx_n * width as f32 / 2.0).round() as isize,
+        );
+
+        let vertices = vec![v1, v2, v3, v4];
+
+        self.draw_polygon_solid(&vertices, true, color);
+    }
+
+    /// Draws a line with specified width and capped ends onto the canvas.
+    /// Drawing the line as a filled polygon with circles on both ends.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use drawing_stuff::canvas::Canvas;
+    /// use drawing_stuff::color::RGBA;
+    ///
+    /// const WIDTH: usize = 1080;
+    /// const HEIGHT: usize = 720;
+    ///
+    /// let mut canvas = Canvas::new(WIDTH, HEIGHT);
+    ///
+    /// let color = RGBA { r: 255, g: 255, b: 255, a: 255 };
+    /// canvas.draw_polyline_capped(200, 100, 500, 700, 5, color);
+    /// ```
+    pub fn draw_polyline_capped(
+        &mut self,
+        x1: isize,
+        y1: isize,
+        x2: isize,
+        y2: isize,
+        width: u32,
+        color: RGBA,
+    ) {
+        self.draw_polyline(x1, y1, x2, y2, width, color);
+        self.draw_circle_solid(x1, y1, width / 2, color);
+        self.draw_circle_solid(x2, y2, width / 2, color);
     }
 
     /// Draws a circle onto the canvas.
@@ -659,13 +755,6 @@ impl Canvas {
         x2: isize,
         y2: isize,
     ) {
-        if x1 == x2 {
-            let (start_y, end_y) = if y1 < y2 { (y1, y2) } else { (y2, y1) };
-            for i in 0..(end_y - start_y) {
-                buff[i as usize] = x1;
-            }
-        }
-
         let dx = (x2 - x1).abs();
         let dy = (y2 - y1).abs();
 

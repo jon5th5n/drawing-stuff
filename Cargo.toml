@@ -5,7 +5,7 @@ authors = ["Jonathan Kappler <kapplerjonathan5@gmail.com>"]
 repository = "https://github.com/jon5th5n/drawing-stuff"
 keywords = ["drawing", "canvas", "color"]
 license = "MIT"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies]
