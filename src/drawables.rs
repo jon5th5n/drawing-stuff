@@ -13,6 +13,7 @@ pub struct Line {
     pub end2: (isize, isize),
 
     pub width: u32,
+    pub capped: bool,
 
     pub color: RGBA,
 }
@@ -34,14 +35,24 @@ impl Draw for Line {
             return;
         }
 
-        canvas.draw_polyline(
-            self.end1.0,
-            self.end1.1,
-            self.end2.0,
-            self.end2.1,
-            self.width,
-            self.color,
-        );
+        match self.capped {
+            true => canvas.draw_polyline_capped(
+                self.end1.0,
+                self.end1.1,
+                self.end2.0,
+                self.end2.1,
+                self.width,
+                self.color,
+            ),
+            false => canvas.draw_polyline(
+                self.end1.0,
+                self.end1.1,
+                self.end2.0,
+                self.end2.1,
+                self.width,
+                self.color,
+            ),
+        }
     }
 }
 
