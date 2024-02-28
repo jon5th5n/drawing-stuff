@@ -343,6 +343,8 @@ impl Canvas {
     /// canvas.draw_line(200, 100, 500, 700, color);
     /// ```
     pub fn draw_line(&mut self, x1: isize, y1: isize, x2: isize, y2: isize, color: RGBA) {
+        let (x1, y1, x2, y2) = self.clamp_line_coords(x1, y1, x2, y2);
+
         if x1 == x2 {
             let (start_y, end_y) = if y1 < y2 { (y1, y2) } else { (y2, y1) };
             for i in 0..(end_y - start_y) {
@@ -452,6 +454,8 @@ impl Canvas {
             self.draw_line(x1, y1, x2, y2, color);
             return;
         }
+
+        let (x1, y1, x2, y2) = self.clamp_line_coords(x1, y1, x2, y2);
 
         let dx = x2 - x1;
         let dy = y2 - y1;
@@ -746,6 +750,123 @@ impl Canvas {
 }
 
 impl Canvas {
+    /// Clamps the specified coordinates of a line into the canvas space and returns them.
+    fn clamp_line_coords(
+        &self,
+        x1: isize,
+        y1: isize,
+        x2: isize,
+        y2: isize,
+    ) -> (isize, isize, isize, isize) {
+        let p1_inside = x1 >= 0 && x1 < self.width as isize && y1 >= 0 && y1 < self.height as isize;
+        let p2_inside = x2 >= 0 && x2 < self.width as isize && y2 >= 0 && y2 < self.height as isize;
+
+        if p1_inside && p2_inside {
+            return (x1, y1, x2, y2);
+        }
+
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+
+        if dx == 0 {
+            let s_y0 = (x1, 0 as isize);
+            let s_yh = (x1, self.width as isize);
+
+            let (x1, y1) = match p1_inside {
+                true => (x1, y1),
+                false => {
+                    if y1 < 0 {
+                        s_y0
+                    } else {
+                        s_yh
+                    }
+                }
+            };
+            let (x2, y2) = match p2_inside {
+                true => (x2, y2),
+                false => {
+                    if y2 < 0 {
+                        s_y0
+                    } else {
+                        s_yh
+                    }
+                }
+            };
+
+            return (x1, y1, x2, y2);
+        }
+
+        let m = dy as f32 / dx as f32;
+        let c = y1 as f32 - m * x1 as f32;
+
+        let s_x0 = (0 as f32, c);
+        let s_xw = (self.width as f32, c + m * self.width as f32);
+        let s_y0 = (-c / m, 0 as f32);
+        let s_yh = ((self.height as f32 - c) / m, self.height as f32);
+
+        let s_x0 = match s_x0.1 >= 0.0 && s_x0.1 < self.height as f32 {
+            true => Some(s_x0),
+            false => None,
+        };
+        let s_xw = match s_xw.1 >= 0.0 && s_xw.1 < self.height as f32 {
+            true => Some(s_xw),
+            false => None,
+        };
+
+        let s_y0 = match s_y0.0 >= 0.0 && s_y0.0 < self.width as f32 {
+            true => Some(s_y0),
+            false => None,
+        };
+        let s_yh = match s_yh.0 >= 0.0 && s_yh.0 < self.width as f32 {
+            true => Some(s_yh),
+            false => None,
+        };
+
+        let mut valid_intersects = [s_x0, s_xw, s_y0, s_yh].into_iter().flatten();
+        let p1 = valid_intersects.next().unwrap();
+        let p2 = valid_intersects.next().unwrap();
+
+        let p1 = (p1.0.round() as isize, p1.1.round() as isize);
+        let p2 = (p2.0.round() as isize, p2.1.round() as isize);
+
+        let (x1, y1) = if p1_inside {
+            (x1, y1)
+        } else {
+            let dx_p1 = p1.0 - x1;
+            let dy_p1 = p1.1 - y1;
+            let sqr_dist_p1 = dx_p1 * dx_p1 + dy_p1 * dy_p1;
+
+            let dx_p2 = p2.0 - x1;
+            let dy_p2 = p2.1 - y1;
+            let sqr_dist_p2 = dx_p2 * dx_p2 + dy_p2 * dy_p2;
+
+            if sqr_dist_p1 < sqr_dist_p2 {
+                p1
+            } else {
+                p2
+            }
+        };
+        let (x2, y2) = if p2_inside {
+            (x2, y2)
+        } else {
+            let dx_p1 = p1.0 - x2;
+            let dy_p1 = p1.1 - y2;
+            let sqr_dist_p1 = dx_p1 * dx_p1 + dy_p1 * dy_p1;
+
+            let dx_p2 = p2.0 - x2;
+            let dy_p2 = p2.1 - y2;
+            let sqr_dist_p2 = dx_p2 * dx_p2 + dy_p2 * dy_p2;
+
+            if sqr_dist_p1 < sqr_dist_p2 {
+                p1
+            } else {
+                p2
+            }
+        };
+
+        (x1, y1, x2, y2)
+    }
+
     /// Computes a line for use of drawing solid polygons.
     fn polygon_buffer_line(
         buff: &mut Vec<isize>,
