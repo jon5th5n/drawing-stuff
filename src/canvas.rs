@@ -420,6 +420,140 @@ impl Canvas {
         }
     }
 
+    /// Draws an anti-aliased line onto the canvas.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use drawing_stuff::canvas::Canvas;
+    /// use drawing_stuff::color::RGBA;
+    ///
+    /// const WIDTH: usize = 1080;
+    /// const HEIGHT: usize = 720;
+    ///
+    /// let mut canvas = Canvas::new(WIDTH, HEIGHT);
+    ///
+    /// let color = RGBA { r: 255, g: 255, b: 255, a: 255 };
+    /// canvas.draw_line_aa(200.0, 100.0, 500.0, 700.0, color);
+    /// ```
+    pub fn draw_line_aa(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, color: RGBA) {
+        let steep = (y2 - y1).abs() > (x2 - x1).abs();
+
+        let (x1, y1, x2, y2) = match steep {
+            true => (y1, x1, y2, x2),
+            false => (x1, y1, x2, y2),
+        };
+        let (x1, y1, x2, y2) = match x1 > x2 {
+            true => (x2, y2, x1, y1),
+            false => (x1, y1, x2, y2),
+        };
+
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+
+        let gradient = match dx == 0.0 {
+            true => 1.0,
+            false => dy as f32 / dx as f32,
+        };
+
+        let x_end = x1.round();
+        let y_end = y1 + gradient * (x_end - x1);
+        let x_gap = 1.0 - (x1 + 0.5).fract();
+        let x_pxl_1 = x_end as isize;
+        let y_pxl_1 = y_end.trunc() as isize;
+        match steep {
+            true => {
+                self.draw_pixel(
+                    y_pxl_1,
+                    x_pxl_1,
+                    color.scale_alpha((1.0 - y_end.fract()) * x_gap),
+                );
+                self.draw_pixel(
+                    y_pxl_1 + 1,
+                    x_pxl_1,
+                    color.scale_alpha(y_end.fract() * x_gap),
+                );
+            }
+            false => {
+                self.draw_pixel(
+                    x_pxl_1,
+                    y_pxl_1,
+                    color.scale_alpha((1.0 - y_end.fract()) * x_gap),
+                );
+                self.draw_pixel(
+                    x_pxl_1,
+                    y_pxl_1 + 1,
+                    color.scale_alpha(y_end.fract() * x_gap),
+                );
+            }
+        }
+
+        let mut inter_y = y_end + gradient;
+
+        let x_end = x2.round();
+        let y_end = y2 + gradient * (x_end - x2);
+        let x_gap = 1.0 - (x2 + 0.5).fract();
+        let x_pxl_2 = x_end as isize;
+        let y_pxl_2 = y_end.trunc() as isize;
+        match steep {
+            true => {
+                self.draw_pixel(
+                    y_pxl_2,
+                    x_pxl_2,
+                    color.scale_alpha((1.0 - y_end.fract()) * x_gap),
+                );
+                self.draw_pixel(
+                    y_pxl_2 + 1,
+                    x_pxl_2,
+                    color.scale_alpha(y_end.fract() * x_gap),
+                );
+            }
+            false => {
+                self.draw_pixel(
+                    x_pxl_2,
+                    y_pxl_2,
+                    color.scale_alpha((1.0 - y_end.fract()) * x_gap),
+                );
+                self.draw_pixel(
+                    x_pxl_2,
+                    y_pxl_2 + 1,
+                    color.scale_alpha(y_end.fract() * x_gap),
+                );
+            }
+        }
+
+        for x in (x_pxl_1 + 1)..=x_pxl_2 {
+            match steep {
+                true => {
+                    self.draw_pixel(
+                        inter_y.trunc() as isize,
+                        x,
+                        color.scale_alpha(1.0 - inter_y.fract()),
+                    );
+                    self.draw_pixel(
+                        inter_y.trunc() as isize + 1,
+                        x,
+                        color.scale_alpha(inter_y.fract()),
+                    );
+                }
+                false => {
+                    self.draw_pixel(
+                        x,
+                        inter_y.trunc() as isize,
+                        color.scale_alpha(1.0 - inter_y.fract()),
+                    );
+                    self.draw_pixel(
+                        x,
+                        inter_y.trunc() as isize + 1,
+                        color.scale_alpha(inter_y.fract()),
+                    );
+                }
+            }
+
+            inter_y += gradient;
+        }
+    }
+
     /// Draws a line with specified width onto the canvas.
     /// Drawing the line as a filled polygon.
     ///
@@ -486,6 +620,70 @@ impl Canvas {
         self.draw_polygon_solid(&vertices, true, color);
     }
 
+    /// Draws an anti-aliased line with specified width onto the canvas.
+    /// Drawing the line as a filled polygon.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use drawing_stuff::canvas::Canvas;
+    /// use drawing_stuff::color::RGBA;
+    ///
+    /// const WIDTH: usize = 1080;
+    /// const HEIGHT: usize = 720;
+    ///
+    /// let mut canvas = Canvas::new(WIDTH, HEIGHT);
+    ///
+    /// let color = RGBA { r: 255, g: 255, b: 255, a: 255 };
+    /// canvas.draw_polyline_aa(200.0, 100.0, 500.0, 700.0, 5.0, color);
+    /// ```
+    pub fn draw_polyline_aa(
+        &mut self,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        width: f32,
+        color: RGBA,
+    ) {
+        if width == 0.0 {
+            return;
+        }
+
+        if width == 1.0 {
+            self.draw_line_aa(x1, y1, x2, y2, color);
+            return;
+        }
+
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+
+        let d_len = ((dx * dx + dy * dy) as f32).sqrt();
+        let dx_n = dx as f32 / d_len;
+        let dy_n = dy as f32 / d_len;
+
+        let v1 = (
+            x1 - (dy_n * width as f32 / 2.0),
+            y1 + (dx_n * width as f32 / 2.0),
+        );
+        let v2 = (
+            x1 + (dy_n * width as f32 / 2.0),
+            y1 - (dx_n * width as f32 / 2.0),
+        );
+        let v3 = (
+            x2 + (dy_n * width as f32 / 2.0),
+            y2 - (dx_n * width as f32 / 2.0),
+        );
+        let v4 = (
+            x2 - (dy_n * width as f32 / 2.0),
+            y2 + (dx_n * width as f32 / 2.0),
+        );
+
+        let vertices = vec![v1, v2, v3, v4];
+
+        self.draw_polygon_solid_aa(&vertices, true, color);
+    }
+
     /// Draws a line with specified width and capped ends onto the canvas.
     /// Drawing the line as a filled polygon with circles on both ends.
     ///
@@ -515,6 +713,37 @@ impl Canvas {
         self.draw_polyline(x1, y1, x2, y2, width, color);
         self.draw_circle_solid(x1, y1, width / 2, color);
         self.draw_circle_solid(x2, y2, width / 2, color);
+    }
+
+    /// Draws an anti-aliased line with specified width and capped ends onto the canvas.
+    /// Drawing the line as a filled polygon with circles on both ends.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use drawing_stuff::canvas::Canvas;
+    /// use drawing_stuff::color::RGBA;
+    ///
+    /// const WIDTH: usize = 1080;
+    /// const HEIGHT: usize = 720;
+    ///
+    /// let mut canvas = Canvas::new(WIDTH, HEIGHT);
+    ///
+    /// let color = RGBA { r: 255, g: 255, b: 255, a: 255 };
+    /// canvas.draw_polyline_capped_aa(200.0, 100.0, 500.0, 700.0, 5.0, color);
+    /// ```
+    pub fn draw_polyline_capped_aa(
+        &mut self,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        width: f32,
+        color: RGBA,
+    ) {
+        self.draw_polyline_aa(x1, y1, x2, y2, width, color);
+        // self.draw_circle_solid_aa(x1, y1, width / 2, color);
+        // self.draw_circle_solid_aa(x2, y2, width / 2, color);
     }
 
     /// Draws a circle onto the canvas.
@@ -560,6 +789,30 @@ impl Canvas {
                 x_offset -= 1;
             }
         }
+    }
+
+    /// Draws an anti-aliased circle onto the canvas.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use drawing_stuff::canvas::Canvas;
+    /// use drawing_stuff::color::RGBA;
+    ///
+    /// const WIDTH: usize = 1080;
+    /// const HEIGHT: usize = 720;
+    ///
+    /// let mut canvas = Canvas::new(WIDTH, HEIGHT);
+    ///
+    /// let color = RGBA { r: 255, g: 255, b: 255, a: 255 };
+    /// canvas.draw_circle_aa(200.0, 100.0, 15.0, color);
+    /// ```
+    pub fn draw_circle_aa(&mut self, x: f32, y: f32, r: f32, color: RGBA) {
+        if r == 0.0 {
+            return;
+        }
+
+        todo!();
     }
 
     /// Draws a solid circle onto the canvas.
@@ -622,6 +875,30 @@ impl Canvas {
         }
     }
 
+    /// Draws an anti-aliased solid circle onto the canvas.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use drawing_stuff::canvas::Canvas;
+    /// use drawing_stuff::color::RGBA;
+    ///
+    /// const WIDTH: usize = 1080;
+    /// const HEIGHT: usize = 720;
+    ///
+    /// let mut canvas = Canvas::new(WIDTH, HEIGHT);
+    ///
+    /// let color = RGBA { r: 255, g: 255, b: 255, a: 255 };
+    /// canvas.draw_circle_solid_aa(200.0, 100.0, 15.0, color);
+    /// ```
+    pub fn draw_circle_solid_aa(&mut self, x: f32, y: f32, r: f32, color: RGBA) {
+        if r == 0.0 {
+            return;
+        }
+
+        todo!();
+    }
+
     /// Draws a polygon onto the canvas.
     ///
     /// # Examples
@@ -653,6 +930,39 @@ impl Canvas {
         let (x1, y1) = vertices[0];
         let (x2, y2) = vertices[vertices.len() - 1];
         self.draw_line(x1, y1, x2, y2, color);
+    }
+
+    /// Draws an anti-aliased polygon onto the canvas.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use drawing_stuff::canvas::Canvas;
+    /// use drawing_stuff::color::RGBA;
+    ///
+    /// const WIDTH: usize = 1080;
+    /// const HEIGHT: usize = 720;
+    ///
+    /// let mut canvas = Canvas::new(WIDTH, HEIGHT);
+    ///
+    /// let color = RGBA { r: 255, g: 255, b: 255, a: 255 };
+    /// let vertices = vec![(200.0, 100.0), (500.0, 700.0), (300.0, 800.0)];
+    /// canvas.draw_polygon_aa(&vertices, color);
+    /// ```
+    pub fn draw_polygon_aa(&mut self, vertices: &Vec<(f32, f32)>, color: RGBA) {
+        if vertices.is_empty() {
+            return;
+        }
+
+        for i in 1..vertices.len() {
+            let (x1, y1) = vertices[i];
+            let (x2, y2) = vertices[i - 1];
+            self.draw_line_aa(x1, y1, x2, y2, color);
+        }
+
+        let (x1, y1) = vertices[0];
+        let (x2, y2) = vertices[vertices.len() - 1];
+        self.draw_line_aa(x1, y1, x2, y2, color);
     }
 
     /// Draws a solid polygon onto the canvas.
@@ -746,6 +1056,46 @@ impl Canvas {
                 self.draw_pixel(x, y, color);
             }
         }
+    }
+
+    /// Draws an anti-aliased solid polygon onto the canvas.
+    ///
+    /// The vertices of the polygon have to be given in the specified order (clockwise / anti-clockwise).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use drawing_stuff::canvas::Canvas;
+    /// use drawing_stuff::color::RGBA;
+    ///
+    /// const WIDTH: usize = 1080;
+    /// const HEIGHT: usize = 720;
+    ///
+    /// let mut canvas = Canvas::new(WIDTH, HEIGHT);
+    ///
+    /// let color = RGBA { r: 255, g: 255, b: 255, a: 255 };
+    /// let clockwise = true;
+    /// let vertices = vec![(200.0, 100.0), (500.0, 700.0), (300.0, 800.0)]; // clockwise
+    /// canvas.draw_polygon_solid_aa(&vertices, clockwise, color);
+    /// ```
+    pub fn draw_polygon_solid_aa(
+        &mut self,
+        vertices: &Vec<(f32, f32)>,
+        clockwise: bool,
+        color: RGBA,
+    ) {
+        let vertices = vertices
+            .into_iter()
+            .map(|vert| (vert.0.round(), vert.1.round()))
+            .collect::<Vec<_>>();
+
+        self.draw_polygon_aa(&vertices, color);
+
+        let vertices = vertices
+            .into_iter()
+            .map(|vert| (vert.0 as isize, vert.1 as isize))
+            .collect::<Vec<_>>();
+        self.draw_polygon_solid(&vertices, clockwise, color);
     }
 }
 

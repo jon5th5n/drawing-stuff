@@ -21,6 +21,11 @@ impl RGBA {
             self.a,
         )
     }
+
+    pub fn scale_alpha(mut self, scalar: f32) -> Self {
+        self.a = (self.a as f32 * scalar).clamp(0.0, 255.0) as u8;
+        self
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,15 +40,15 @@ impl RGB {
     /// This simply performs a linear interpolation between the two.
     pub fn add_rgba(self, other: RGBA) -> Self {
         let (other, alpha) = other.to_rgb();
-        self.lerp(&other, alpha as f64 / 255.0)
+        self.lerp(&other, alpha as f32 / 255.0)
     }
 
     /// Performs a linear interpolation between two RGB values returning the result.
-    pub fn lerp(&self, other: &Self, a: f64) -> Self {
+    pub fn lerp(&self, other: &Self, a: f32) -> Self {
         RGB {
-            r: ((1.0 - a) * self.r as f64 + a * other.r as f64) as u8,
-            g: ((1.0 - a) * self.g as f64 + a * other.g as f64) as u8,
-            b: ((1.0 - a) * self.b as f64 + a * other.b as f64) as u8,
+            r: ((1.0 - a) * self.r as f32 + a * other.r as f32) as u8,
+            g: ((1.0 - a) * self.g as f32 + a * other.g as f32) as u8,
+            b: ((1.0 - a) * self.b as f32 + a * other.b as f32) as u8,
         }
     }
 }

@@ -9,10 +9,11 @@ pub enum AnkerType {
 
 #[derive(Debug)]
 pub struct Line {
-    pub end1: (isize, isize),
-    pub end2: (isize, isize),
+    pub end1: (f32, f32),
+    pub end2: (f32, f32),
 
-    pub width: u32,
+    pub width: f32,
+    pub anti_aliased: bool,
     pub capped: bool,
 
     pub color: RGBA,
@@ -20,23 +21,33 @@ pub struct Line {
 
 impl Draw for Line {
     fn draw(&self, canvas: &mut Canvas) {
-        if self.width == 0 {
+        if self.width == 0.0 {
             return;
         };
 
-        if self.width == 1 {
-            canvas.draw_line(
-                self.end1.0,
-                self.end1.1,
-                self.end2.0,
-                self.end2.1,
-                self.color,
-            );
+        if self.width == 1.0 {
+            match self.anti_aliased {
+                true => canvas.draw_line_aa(
+                    self.end1.0,
+                    self.end1.1,
+                    self.end2.0,
+                    self.end2.1,
+                    self.color,
+                ),
+                false => canvas.draw_line(
+                    self.end1.0.round() as isize,
+                    self.end1.1.round() as isize,
+                    self.end2.0.round() as isize,
+                    self.end2.1.round() as isize,
+                    self.color,
+                ),
+            }
+
             return;
         }
 
-        match self.capped {
-            true => canvas.draw_polyline_capped(
+        match (self.anti_aliased, self.capped) {
+            (true, true) => canvas.draw_polyline_capped_aa(
                 self.end1.0,
                 self.end1.1,
                 self.end2.0,
@@ -44,12 +55,28 @@ impl Draw for Line {
                 self.width,
                 self.color,
             ),
-            false => canvas.draw_polyline(
+            (true, false) => canvas.draw_polyline_aa(
                 self.end1.0,
                 self.end1.1,
                 self.end2.0,
                 self.end2.1,
                 self.width,
+                self.color,
+            ),
+            (false, true) => canvas.draw_polyline_capped(
+                self.end1.0.round() as isize,
+                self.end1.1.round() as isize,
+                self.end2.0.round() as isize,
+                self.end2.1.round() as isize,
+                self.width.round() as u32,
+                self.color,
+            ),
+            (false, false) => canvas.draw_polyline(
+                self.end1.0.round() as isize,
+                self.end1.1.round() as isize,
+                self.end2.0.round() as isize,
+                self.end2.1.round() as isize,
+                self.width.round() as u32,
                 self.color,
             ),
         }
@@ -58,9 +85,10 @@ impl Draw for Line {
 
 #[derive(Debug)]
 pub struct Circle {
-    pub center: (isize, isize),
-    pub radius: u32,
+    pub center: (f32, f32),
+    pub radius: f32,
 
+    pub anti_aliased: bool,
     pub solid: bool,
 
     pub color: RGBA,
@@ -68,9 +96,25 @@ pub struct Circle {
 
 impl Draw for Circle {
     fn draw(&self, canvas: &mut Canvas) {
-        match self.solid {
-            true => canvas.draw_circle_solid(self.center.0, self.center.1, self.radius, self.color),
-            false => canvas.draw_circle(self.center.0, self.center.1, self.radius, self.color),
+        match (self.anti_aliased, self.solid) {
+            (true, true) => {
+                canvas.draw_circle_solid_aa(self.center.0, self.center.1, self.radius, self.color)
+            }
+            (true, false) => {
+                canvas.draw_circle_aa(self.center.0, self.center.1, self.radius, self.color)
+            }
+            (false, true) => canvas.draw_circle_solid(
+                self.center.0.round() as isize,
+                self.center.1.round() as isize,
+                self.radius.round() as u32,
+                self.color,
+            ),
+            (false, false) => canvas.draw_circle(
+                self.center.0.round() as isize,
+                self.center.1.round() as isize,
+                self.radius.round() as u32,
+                self.color,
+            ),
         }
     }
 }
